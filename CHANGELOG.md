@@ -1,3 +1,5 @@
+## [2.3.0]
+
 ## [2.2.3](https://github.com/RomRider/apexcharts-card/compare/v2.2.2...v2.2.3) (2025-08-21)
 
 ### Bug Fixes
