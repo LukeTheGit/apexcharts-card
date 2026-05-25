@@ -52,8 +52,9 @@ export default [
   {
     input: 'src/apexcharts-card.ts',
     output: {
-      dir: './dist',
+      file: './dist/apexcharts-card.js',
       format: 'es',
+      inlineDynamicImports: true,
       sourcemap: dev ? true : false,
       globals: {
         apexcharts: 'ApexCharts',

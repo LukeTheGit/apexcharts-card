@@ -1701,6 +1701,11 @@ return data.reverse();
     }
     return conf;
   }
+
+  static async getConfigElement(): Promise<HTMLElement> {
+    await import('./editor/index');
+    return document.createElement('apexcharts-card-editor');
+  }
 }
 
 // Configure the preview in the Lovelace card picker
