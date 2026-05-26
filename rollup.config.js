@@ -51,12 +51,10 @@ const plugins = [
 export default [
   {
     input: 'src/apexcharts-card.ts',
-    preserveEntrySignatures: false,
     output: {
-      dir: './dist',
+      file: './dist/apexcharts-card.js',
       format: 'es',
-      entryFileNames: 'apexcharts-card.js',
-      chunkFileNames: '[name]-[hash].js',
+      inlineDynamicImports: true,
       sourcemap: dev ? true : false,
       globals: {
         apexcharts: 'ApexCharts',
