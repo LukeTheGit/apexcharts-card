@@ -23,6 +23,14 @@ import '../components/color-list-editor';
 import '../components/bool-grid';
 import '../components/annotations-editor';
 
+function msToLocalDateTimeString(ms: number): string {
+  const d = new Date(ms);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${date} ${time}`;
+}
+
 @customElement('apexcharts-card-editor-display')
 export class ApexChartsCardEditorDisplay extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
@@ -194,9 +202,13 @@ export class ApexChartsCardEditorDisplay extends LitElement {
     ev.stopPropagation();
     const { name, value } = ev.detail as { name: string; value: boolean };
     if (name === 'show') {
-      // apexcharts-card forces chart.toolbar.show=false in its defaults,
-      // so we must set `true` explicitly to override; clear when off.
-      this._setApex('chart.toolbar.show', value ? true : undefined);
+      // apexcharts-card forces chart.toolbar.show=false AND chart.zoom.enabled=false in its defaults.
+      // ApexCharts hides zoom/pan/reset icons when chart.zoom.enabled is false, leaving only the
+      // download menu — so when the user enables the toolbar we also enable zoom (and clear both on off).
+      this._setApexMany({
+        'chart.toolbar.show': value ? true : undefined,
+        'chart.zoom.enabled': value ? true : undefined,
+      });
       return;
     }
     const toolMap: Record<string, string> = {
@@ -250,11 +262,13 @@ export class ApexChartsCardEditorDisplay extends LitElement {
           const raw = String(it.value).trim();
           const asNum = Number(raw);
           if (!isNaN(asNum) && /^[\d.+-eE]+$/.test(raw)) {
-            // Numeric input -> keep as ms timestamp
+            // Already a numeric (ms epoch) value -> keep as-is.
             out.x = asNum;
           } else {
-            // Preserve date string; ApexCharts parses it at render time
-            out.x = raw;
+            // Try to interpret as a date/time string and store as ms epoch
+            // (ApexCharts xaxis annotations on a datetime axis require a numeric x).
+            const parsed = Date.parse(raw);
+            out.x = isNaN(parsed) ? raw : parsed;
           }
         }
       } else {
@@ -287,7 +301,16 @@ export class ApexChartsCardEditorDisplay extends LitElement {
       const labelText = labelObj?.text as string | undefined;
       const color = (rec.borderColor as string | undefined) || ((labelObj?.style as Record<string, unknown> | undefined)?.background as string | undefined);
       const item: AnnotationItem = {};
-      if (rawValue !== undefined) item.value = rawValue;
+      if (rawValue !== undefined) {
+        // For xaxis: ms-epoch numbers should be shown as a readable local datetime so the user
+        // can see what they typed. Anything below ~1973 (10^11 ms) is assumed to be a real numeric
+        // category value, not an epoch.
+        if (axis === 'xaxis' && typeof rawValue === 'number' && rawValue >= 1e11) {
+          item.value = msToLocalDateTimeString(rawValue);
+        } else {
+          item.value = rawValue;
+        }
+      }
       if (labelText) item.label = labelText;
       if (color) item.color = color;
       return item;
