@@ -16,7 +16,7 @@ export class ApexChartsCardEditorPreview extends LitElement {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _cardElement?: any;
 
-  static styles = undefined; // styles inherited via light DOM is not desirable; we render in shadow with no styles → keep host minimal
+  static styles = undefined; // styles inherited via light DOM is not desirable; we render in shadow with no styles â†’ keep host minimal
 
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     // Use light DOM so the parent editor's CSS applies (preview-toggle, preview-container, preview-error)

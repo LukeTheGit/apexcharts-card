@@ -22,7 +22,7 @@ const serveopts = {
 const plugins = [
   nodeResolve({}),
   commonjs(),
-  typescript(),
+  typescript({ include: ['src/**/*.ts'], check: false }),
   json(),
   babel({
     exclude: 'node_modules/**',

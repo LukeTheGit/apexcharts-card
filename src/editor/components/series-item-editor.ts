@@ -1,6 +1,7 @@
-import { LitElement, html, TemplateResult, nothing } from 'lit';
+import { LitElement, html, TemplateResult, nothing, CSSResultGroup } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
+import { editorStyles } from '../styles';
 import {
   ChartCardAllSeriesExternalConfig,
   ChartCardExternalConfig,
@@ -21,10 +22,14 @@ import {
   SERIES_APPEARANCE_SCHEMA,
   SERIES_CORE_SCHEMA,
   SERIES_DATA_PROCESSING_SCHEMA,
-  SERIES_VISIBILITY_SCHEMA,
+  SERIES_GROUP_BY_SCHEMA,
+  SERIES_VISIBILITY_BOOL_FIELDS,
+  SERIES_VISIBILITY_SELECT_SCHEMA,
 } from '../schemas/series';
+import { BoolField } from './bool-grid';
 import './color-threshold-editor';
 import './actions-editor';
+import './bool-grid';
 
 type Series = ChartCardSeriesExternalConfig | ChartCardAllSeriesExternalConfig;
 
@@ -35,7 +40,11 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
   @property({ attribute: false }) public series?: Series;
   @property({ attribute: false }) public isAllSeriesConfig = false;
 
-  // ── Core helpers ──
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
+
+  // â”€â”€ Core helpers â”€â”€
 
   private _fire(updates: Partial<Series>): void {
     const next: Series = { ...(this.series || {}), ...updates };
@@ -66,7 +75,7 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
     return 'transparent';
   }
 
-  // ── Field handlers ──
+  // â”€â”€ Field handlers â”€â”€
 
   private _entityChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
@@ -90,10 +99,21 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
     this._fire({ color: value || undefined } as Partial<Series>);
   };
 
+  private _swatchHex(): string {
+    const s = this.series;
+    if (s?.color) {
+      try {
+        return computeColor(s.color);
+      } catch {
+        return '#000000';
+      }
+    }
+    return '#000000';
+  }
+
   private _dataProcessingData(): Record<string, unknown> {
     const s = this.series || {};
     return {
-      group_by: s.group_by || {},
       statistics: s.statistics || {},
       fill_raw: s.fill_raw,
       transform: s.transform,
@@ -101,10 +121,37 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
     };
   }
 
+  private _groupByData(): Record<string, unknown> {
+    const g = this.series?.group_by || {};
+    return {
+      duration: g.duration || '',
+      func: g.func || '',
+      fill: g.fill || '',
+    };
+  }
+
+  private _groupByChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    const data = ev.detail.value as { duration?: string; func?: string; fill?: string };
+    const g: NonNullable<Series['group_by']> = { ...(this.series?.group_by || {}) };
+    if ('duration' in data) {
+      if (data.duration) g.duration = data.duration;
+      else delete g.duration;
+    }
+    if ('func' in data) {
+      if (data.func) g.func = data.func as NonNullable<Series['group_by']>['func'];
+      else delete g.func;
+    }
+    if ('fill' in data) {
+      if (data.fill) g.fill = data.fill as NonNullable<Series['group_by']>['fill'];
+      else delete g.fill;
+    }
+    this._fire({ group_by: Object.keys(g).length > 0 ? g : undefined } as Partial<Series>);
+  };
+
   private _dataProcessingChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
     const data = ev.detail.value as {
-      group_by?: { duration?: string; func?: string; fill?: string; start_with_last?: boolean };
       statistics?: { type?: string; period?: string; align?: string };
       fill_raw?: string;
       transform?: string;
@@ -113,14 +160,6 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
 
     const updates: Partial<Series> = {};
 
-    if (data.group_by) {
-      const g: NonNullable<Series['group_by']> = {};
-      if (data.group_by.duration) g.duration = data.group_by.duration;
-      if (data.group_by.func) g.func = data.group_by.func as NonNullable<Series['group_by']>['func'];
-      if (data.group_by.fill) g.fill = data.group_by.fill as NonNullable<Series['group_by']>['fill'];
-      if (data.group_by.start_with_last) g.start_with_last = true;
-      updates.group_by = Object.keys(g).length > 0 ? g : undefined;
-    }
     if (data.statistics) {
       const st: NonNullable<Series['statistics']> = {};
       if (data.statistics.type) st.type = data.statistics.type as NonNullable<Series['statistics']>['type'];
@@ -143,7 +182,6 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
       stroke_width: s.stroke_width,
       stroke_dash: serializeStrokeDash(s.stroke_dash),
       extend_to: toSelectValue(s.extend_to),
-      invert: s.invert ?? false,
     };
   }
 
@@ -165,71 +203,94 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
       else if (v === 'end' || v === 'now') updates.extend_to = v;
       else updates.extend_to = undefined;
     }
-    if ('invert' in data) updates.invert = data.invert ? true : undefined;
     this._fire(updates);
   };
 
-  private _visibilityData(): Record<string, unknown> {
+  private _invertChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    const { value } = ev.detail as { name: string; value: boolean };
+    this._fire({ invert: value ? true : undefined } as Partial<Series>);
+  };
+
+  private _groupByStartWithLastChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    const { value } = ev.detail as { name: string; value: boolean };
+    const g: NonNullable<Series['group_by']> = { ...(this.series?.group_by || {}) };
+    if (value) g.start_with_last = true;
+    else delete g.start_with_last;
+    this._fire({ group_by: Object.keys(g).length > 0 ? g : undefined } as Partial<Series>);
+  };
+
+  private _visibilitySelectData(): Record<string, unknown> {
     const show = (this.series?.show || {}) as Record<string, unknown>;
     return {
-      in_chart: show.in_chart ?? true,
       in_header: toSelectValue(show.in_header as undefined),
-      in_legend: show.in_legend ?? true,
-      legend_value: show.legend_value ?? true,
-      name_in_header: show.name_in_header ?? true,
-      offset_in_name: show.offset_in_name ?? true,
-      null_in_header: show.null_in_header ?? true,
-      zero_in_header: show.zero_in_header ?? true,
       as_duration: toSelectValue(show.as_duration as undefined),
       extremas: toSelectValue(show.extremas as undefined),
       datalabels: toSelectValue(show.datalabels as undefined),
-      header_color_threshold: show.header_color_threshold ?? false,
-      hidden_by_default: show.hidden_by_default ?? false,
-      in_brush: show.in_brush ?? false,
     };
   }
 
-  private _visibilityChanged = (ev: CustomEvent): void => {
+  private _visibilityBoolFields(): BoolField[] {
+    const show = (this.series?.show || {}) as Record<string, unknown>;
+    const fields: BoolField[] = SERIES_VISIBILITY_BOOL_FIELDS.map(({ name, defaultValue }) => ({
+      name,
+      label: computeLabel({ name } as HaFormSchema),
+      value: (show[name] as boolean | undefined) ?? defaultValue,
+    }));
+    // Conditional experimental booleans
+    if (this.config?.experimental?.color_threshold) {
+      fields.push({
+        name: 'header_color_threshold',
+        label: computeLabel({ name: 'header_color_threshold' } as HaFormSchema),
+        value: !!show.header_color_threshold,
+      });
+    }
+    if (this.config?.experimental?.hidden_by_default) {
+      fields.push({
+        name: 'hidden_by_default',
+        label: computeLabel({ name: 'hidden_by_default' } as HaFormSchema),
+        value: !!show.hidden_by_default,
+      });
+    }
+    if (this.config?.experimental?.brush) {
+      fields.push({
+        name: 'in_brush',
+        label: computeLabel({ name: 'in_brush' } as HaFormSchema),
+        value: !!show.in_brush,
+      });
+    }
+    return fields;
+  }
+
+  private _visibilityBoolChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    const { name, value } = ev.detail as { name: string; value: boolean };
+    const show: Record<string, unknown> = { ...(this.series?.show || {}) };
+    const def = SERIES_VISIBILITY_BOOL_FIELDS.find((f) => f.name === name);
+    if (def) {
+      // Persist only when value differs from the schema default
+      if (value === def.defaultValue) delete show[name];
+      else show[name] = value;
+    } else {
+      // Optional/experimental fields: persist only when true
+      if (value) show[name] = true;
+      else delete show[name];
+    }
+    this._fire({ show: Object.keys(show).length > 0 ? (show as Series['show']) : undefined });
+  };
+
+  private _visibilitySelectChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
     const data = ev.detail.value as Record<string, unknown>;
     const show: Record<string, unknown> = { ...(this.series?.show || {}) };
-
-    const setBool = (k: string, defaultVal: boolean): void => {
-      if (k in data) {
-        const v = data[k] as boolean;
-        if (v === defaultVal) delete show[k];
-        else show[k] = v;
-      }
-    };
-    const setMulti = (k: string): void => {
+    for (const k of ['in_header', 'as_duration', 'extremas', 'datalabels']) {
       if (k in data) {
         const v = fromSelectValue(data[k] as string);
         if (v === undefined) delete show[k];
         else show[k] = v;
       }
-    };
-    const setOpt = (k: string): void => {
-      if (k in data) {
-        if (data[k]) show[k] = data[k];
-        else delete show[k];
-      }
-    };
-
-    setBool('in_chart', true);
-    setMulti('in_header');
-    setBool('in_legend', true);
-    setBool('legend_value', true);
-    setBool('name_in_header', true);
-    setBool('offset_in_name', true);
-    setBool('null_in_header', true);
-    setBool('zero_in_header', true);
-    setMulti('as_duration');
-    setMulti('extremas');
-    setMulti('datalabels');
-    setOpt('header_color_threshold');
-    setOpt('hidden_by_default');
-    setOpt('in_brush');
-
+    }
     this._fire({ show: Object.keys(show).length > 0 ? (show as Series['show']) : undefined });
   };
 
@@ -243,7 +304,6 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
       time_delta: s.time_delta,
       min: s.min,
       max: s.max,
-      yaxis_id: s.yaxis_id,
       stack_group: s.stack_group,
     };
   }
@@ -260,20 +320,44 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
         ],
       });
     }
-    if (this.config?.yaxis && this.config.yaxis.length > 0) {
-      schema.push({ name: 'yaxis_id', selector: { text: {} } });
-    }
     if (this.config?.stacked) {
       schema.push({ name: 'stack_group', selector: { text: {} } });
     }
     return schema;
   }
 
+  private _yaxisIdSchema(): HaFormSchema[] {
+    const yaxes = this.config?.yaxis;
+    if (!yaxes || yaxes.length === 0) return [];
+    const options = yaxes
+      .filter((y) => y.id)
+      .map((y) => ({ value: y.id as string, label: y.id as string }));
+    if (options.length === 0) return [];
+    return [
+      {
+        name: 'yaxis_id',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: [{ value: '', label: '(default)' }, ...options],
+          },
+        },
+      },
+    ];
+  }
+
+  private _yaxisIdChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    const data = ev.detail.value as { yaxis_id?: string };
+    this._fire({ yaxis_id: data.yaxis_id || undefined } as Partial<Series>);
+  };
+
+
   private _advancedChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
     const data = ev.detail.value as Record<string, unknown>;
     const updates: Partial<Series> = {};
-    const stringKeys: (keyof Series)[] = ['attribute', 'unit', 'offset', 'time_delta', 'yaxis_id', 'stack_group'];
+    const stringKeys: (keyof Series)[] = ['attribute', 'unit', 'offset', 'time_delta', 'stack_group'];
     for (const k of stringKeys) {
       if (k in data) (updates as Record<string, unknown>)[k as string] = (data[k as string] as string) || undefined;
     }
@@ -299,31 +383,12 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
     this._fire({ header_actions: value } as Partial<Series>);
   };
 
-  // ── Visibility schema with conditional fields ──
-
-  private _visibilitySchema(): HaFormSchema[] {
-    const schema: HaFormSchema[] = [...SERIES_VISIBILITY_SCHEMA];
-    const extras: HaFormSchema[] = [];
-    if (this.config?.experimental?.color_threshold) {
-      extras.push({ name: 'header_color_threshold', selector: { boolean: {} } });
-    }
-    if (this.config?.experimental?.hidden_by_default) {
-      extras.push({ name: 'hidden_by_default', selector: { boolean: {} } });
-    }
-    if (this.config?.experimental?.brush) {
-      extras.push({ name: 'in_brush', selector: { boolean: {} } });
-    }
-    if (extras.length > 0) {
-      schema.push({ type: 'grid', name: '', schema: extras });
-    }
-    return schema;
-  }
-
   protected render(): TemplateResult {
     if (!this.hass || !this.series) return html``;
     const s = this.series as ChartCardSeriesExternalConfig;
     const showColorThreshold = !this.isAllSeriesConfig && this.config?.experimental?.color_threshold;
     const showHeaderActions = !this.isAllSeriesConfig;
+    const yaxisIdSchema = this._yaxisIdSchema();
 
     return html`
       <div class="section">
@@ -351,50 +416,120 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
           @value-changed=${this._coreChanged}
         ></ha-form>
 
-        <div class="color-field">
-          <span class="color-preview" style="background: ${this._swatch()};"></span>
-          <ha-textfield
-            label="Color"
-            .value=${s.color || ''}
-            @change=${this._colorChanged}
-          ></ha-textfield>
-        </div>
+        ${yaxisIdSchema.length > 0
+          ? html`
+              <ha-form
+                .hass=${this.hass}
+                .data=${{ yaxis_id: s.yaxis_id || '' }}
+                .schema=${yaxisIdSchema}
+                .computeLabel=${computeLabel}
+                .computeHelper=${computeHelper}
+                @value-changed=${this._yaxisIdChanged}
+              ></ha-form>
+            `
+          : nothing}
 
-        <ha-form
-          .hass=${this.hass}
-          .data=${this._dataProcessingData()}
-          .schema=${[{ type: 'expandable', name: '', title: 'Data Processing', schema: SERIES_DATA_PROCESSING_SCHEMA }]}
-          .computeLabel=${computeLabel}
-          .computeHelper=${computeHelper}
-          @value-changed=${this._dataProcessingChanged}
-        ></ha-form>
+        <ha-expansion-panel outlined header="Appearance">
+          <div class="section">
+            <div class="color-field">
+              <span class="color-field-label">Color</span>
+              <label class="color-preview" title="Pick color">
+                <span style="display:block;width:100%;height:100%;background: ${this._swatch()};"></span>
+                <input type="color" .value=${this._swatchHex()} @input=${this._colorChanged} />
+              </label>
+              <ha-textfield
+                label="Color"
+                .value=${s.color || ''}
+                placeholder="e.g. #ff0000, red, var(--my-color)"
+                @change=${this._colorChanged}
+              ></ha-textfield>
+            </div>
+            <ha-form
+              .hass=${this.hass}
+              .data=${this._appearanceData()}
+              .schema=${SERIES_APPEARANCE_SCHEMA}
+              .computeLabel=${computeLabel}
+              .computeHelper=${computeHelper}
+              @value-changed=${this._appearanceChanged}
+            ></ha-form>
+            <apexcharts-card-bool-grid
+              .fields=${[
+                {
+                  name: 'invert',
+                  label: computeLabel({ name: 'invert' } as HaFormSchema),
+                  value: s.invert ?? false,
+                },
+              ]}
+              .columns=${1}
+              @value-changed=${this._invertChanged}
+            ></apexcharts-card-bool-grid>
+          </div>
+        </ha-expansion-panel>
 
-        <ha-form
-          .hass=${this.hass}
-          .data=${this._appearanceData()}
-          .schema=${[{ type: 'expandable', name: '', title: 'Appearance', schema: SERIES_APPEARANCE_SCHEMA }]}
-          .computeLabel=${computeLabel}
-          .computeHelper=${computeHelper}
-          @value-changed=${this._appearanceChanged}
-        ></ha-form>
+        <ha-expansion-panel outlined header="Visibility">
+          <div class="section">
+            <apexcharts-card-bool-grid
+              .fields=${this._visibilityBoolFields()}
+              .columns=${2}
+              @value-changed=${this._visibilityBoolChanged}
+            ></apexcharts-card-bool-grid>
+            <ha-form
+              .hass=${this.hass}
+              .data=${this._visibilitySelectData()}
+              .schema=${SERIES_VISIBILITY_SELECT_SCHEMA}
+              .computeLabel=${computeLabel}
+              .computeHelper=${computeHelper}
+              @value-changed=${this._visibilitySelectChanged}
+            ></ha-form>
+          </div>
+        </ha-expansion-panel>
 
-        <ha-form
-          .hass=${this.hass}
-          .data=${this._visibilityData()}
-          .schema=${[{ type: 'expandable', name: '', title: 'Visibility', schema: this._visibilitySchema() }]}
-          .computeLabel=${computeLabel}
-          .computeHelper=${computeHelper}
-          @value-changed=${this._visibilityChanged}
-        ></ha-form>
+        <ha-expansion-panel outlined header="Data Processing">
+          <div class="section">
+            <ha-expansion-panel outlined header="Group By">
+              <div class="section">
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${this._groupByData()}
+                  .schema=${SERIES_GROUP_BY_SCHEMA}
+                  .computeLabel=${computeLabel}
+                  .computeHelper=${computeHelper}
+                  @value-changed=${this._groupByChanged}
+                ></ha-form>
+                <apexcharts-card-bool-grid
+                  .fields=${[
+                    {
+                      name: 'start_with_last',
+                      label: computeLabel({ name: 'start_with_last' } as HaFormSchema),
+                      value: !!this.series?.group_by?.start_with_last,
+                    },
+                  ]}
+                  .columns=${1}
+                  @value-changed=${this._groupByStartWithLastChanged}
+                ></apexcharts-card-bool-grid>
+              </div>
+            </ha-expansion-panel>
+            <ha-form
+              .hass=${this.hass}
+              .data=${this._dataProcessingData()}
+              .schema=${SERIES_DATA_PROCESSING_SCHEMA}
+              .computeLabel=${computeLabel}
+              .computeHelper=${computeHelper}
+              @value-changed=${this._dataProcessingChanged}
+            ></ha-form>
+          </div>
+        </ha-expansion-panel>
 
-        <ha-form
-          .hass=${this.hass}
-          .data=${this._advancedData()}
-          .schema=${[{ type: 'expandable', name: '', title: 'Advanced', schema: this._advancedSchema() }]}
-          .computeLabel=${computeLabel}
-          .computeHelper=${computeHelper}
-          @value-changed=${this._advancedChanged}
-        ></ha-form>
+        <ha-expansion-panel outlined header="Advanced">
+          <ha-form
+            .hass=${this.hass}
+            .data=${this._advancedData()}
+            .schema=${this._advancedSchema()}
+            .computeLabel=${computeLabel}
+            .computeHelper=${computeHelper}
+            @value-changed=${this._advancedChanged}
+          ></ha-form>
+        </ha-expansion-panel>
 
         ${showColorThreshold
           ? html`

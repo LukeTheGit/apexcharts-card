@@ -1,4 +1,4 @@
-import { LitElement, html, TemplateResult, CSSResultGroup, nothing } from 'lit';
+import { LitElement, html, TemplateResult, CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { ChartCardExternalConfig } from '../types-config';
@@ -11,7 +11,6 @@ import './components/header-editor';
 import './components/yaxis-editor';
 import './components/color-list-editor';
 import './components/yaml-editor';
-import './components/preview-panel';
 import './tabs/general-tab';
 import './tabs/display-tab';
 import './tabs/advanced-tab';
@@ -60,16 +59,24 @@ export class ApexChartsCardEditor extends LitElement {
     if (!this._config || !this.hass) return html``;
 
     return html`
-      <mwc-tab-bar
-        .activeIndex=${this._activeTab}
-        @MDCTabBar:activated=${(ev: CustomEvent) => {
-          this._activeTab = ev.detail.index;
-        }}
-      >
-        ${EDITOR_TABS.map((tab) => html`<mwc-tab .label=${tab.label}></mwc-tab>`)}
-      </mwc-tab-bar>
+      <div class="tab-bar" role="tablist">
+        ${EDITOR_TABS.map(
+          (tab, index) => html`
+            <button
+              class="tab ${index === this._activeTab ? 'active' : ''}"
+              role="tab"
+              aria-selected=${index === this._activeTab}
+              @click=${() => {
+                this._activeTab = index;
+              }}
+            >
+              <ha-icon icon=${tab.icon}></ha-icon>
+              <span>${tab.label}</span>
+            </button>
+          `,
+        )}
+      </div>
       <div class="tab-content">${this._renderTab()}</div>
-      ${this._renderPreview()}
     `;
   }
 
@@ -140,15 +147,6 @@ export class ApexChartsCardEditor extends LitElement {
     `;
   }
 
-  private _renderPreview(): TemplateResult | typeof nothing {
-    if (!this._config || !this.hass) return nothing;
-    return html`
-      <apexcharts-card-editor-preview
-        .hass=${this.hass}
-        .config=${this._config}
-      ></apexcharts-card-editor-preview>
-    `;
-  }
 }
 
 declare global {

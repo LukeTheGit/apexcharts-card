@@ -1,4 +1,4 @@
-import { LitElement, html, TemplateResult, nothing } from 'lit';
+import { LitElement, html, TemplateResult, nothing, CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import {
@@ -8,6 +8,7 @@ import {
 } from '../../types-config';
 import { computeColor } from '../../utils';
 import { DEFAULT_COLORS } from '../../const';
+import { editorStyles } from '../styles';
 import './series-item-editor';
 
 const ICON_UP = 'M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z';
@@ -22,6 +23,10 @@ export class ApexChartsCardSeriesEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public config?: ChartCardExternalConfig;
   @state() private _expanded: Record<number, boolean> = {};
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _fire(updates: Partial<ChartCardExternalConfig>): void {
     if (!this.config) return;

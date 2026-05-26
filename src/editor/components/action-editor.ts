@@ -1,6 +1,7 @@
-import { LitElement, html, TemplateResult } from 'lit';
+import { LitElement, html, TemplateResult, CSSResultGroup } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
+import { editorStyles } from '../styles';
 import { ActionConfig } from '../../types-config';
 import { HaFormSchema } from '../types';
 import { computeHelper, computeLabel } from '../helpers';
@@ -43,6 +44,10 @@ export class ApexChartsCardActionEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public action?: ActionConfig;
   @property({ type: String }) public label = 'Action';
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _formData(): FormData {
     const a = (this.action || {}) as ActionConfig & {

@@ -75,8 +75,6 @@ declare global {
       autoValidate?: boolean;
       disabled?: boolean;
     };
-    'mwc-tab-bar': LitElement & { activeIndex: number };
-    'mwc-tab': LitElement & { label: string; icon?: string };
     'ha-expansion-panel': LitElement & {
       header?: string;
       outlined?: boolean;

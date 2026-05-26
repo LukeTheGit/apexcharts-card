@@ -1,7 +1,9 @@
-import { LitElement, html, TemplateResult, nothing } from 'lit';
+import { LitElement, html, TemplateResult, nothing, CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { ChartCardExternalConfig, ChartCardYAxisExternal } from '../../types-config';
+import { editorStyles } from '../styles';
+import { getApexYaxisValue, setApexYaxisValue, unwrapEvalBody, wrapEvalBody } from '../apex-config-utils';
 import './yaxis-item-editor';
 
 const ICON_UP = 'M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z';
@@ -16,6 +18,10 @@ export class ApexChartsCardYAxisEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public config?: ChartCardExternalConfig;
   @state() private _expanded: Record<number, boolean> = {};
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _fire(yaxis: ChartCardYAxisExternal[] | undefined): void {
     if (!this.config) return;
@@ -73,6 +79,41 @@ export class ApexChartsCardYAxisEditor extends LitElement {
     this._fire(list);
   }
 
+  private _labelsChanged(i: number, ev: CustomEvent): void {
+    ev.stopPropagation();
+    if (!this.config) return;
+    const { show, formatterBody } = ev.detail as { show: boolean | undefined; formatterBody: string };
+    const axisCount = (this.config.yaxis || []).length;
+
+    // Apply show first, then formatter, chaining mutations
+    let next = setApexYaxisValue(this.config, i, axisCount, 'labels.show', show);
+    const formatter = wrapEvalBody(formatterBody);
+    next = setApexYaxisValue(next, i, axisCount, 'labels.formatter', formatter);
+
+    this.dispatchEvent(
+      new CustomEvent('config-changed', {
+        detail: { config: next },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  private _tickAmountChanged(i: number, ev: CustomEvent): void {
+    ev.stopPropagation();
+    if (!this.config) return;
+    const { value } = ev.detail as { value: number | undefined };
+    const axisCount = (this.config.yaxis || []).length;
+    const next = setApexYaxisValue(this.config, i, axisCount, 'tickAmount', value);
+    this.dispatchEvent(
+      new CustomEvent('config-changed', {
+        detail: { config: next },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
   protected render(): TemplateResult {
     if (!this.hass || !this.config) return html``;
     const list = this.config.yaxis || [];
@@ -120,7 +161,12 @@ export class ApexChartsCardYAxisEditor extends LitElement {
                       <apexcharts-card-yaxis-item-editor
                         .hass=${this.hass}
                         .yaxis=${y}
+                        .labelsShow=${getApexYaxisValue(this.config, i, 'labels.show') === false ? false : true}
+                        .labelsFormatterBody=${unwrapEvalBody(getApexYaxisValue(this.config, i, 'labels.formatter'))}
+                        .tickAmount=${getApexYaxisValue(this.config, i, 'tickAmount') as number | undefined}
                         @value-changed=${(ev: CustomEvent) => this._itemChanged(i, ev)}
+                        @labels-changed=${(ev: CustomEvent) => this._labelsChanged(i, ev)}
+                        @tick-amount-changed=${(ev: CustomEvent) => this._tickAmountChanged(i, ev)}
                       ></apexcharts-card-yaxis-item-editor>
                     </div>
                   `

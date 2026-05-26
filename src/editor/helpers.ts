@@ -49,7 +49,7 @@ export function serializeStrokeDash(val: number | number[] | undefined): string 
 
 const LABEL_MAP: Record<string, string> = {
   chart_type: 'Chart Type',
-  graph_span: 'Graph Span',
+  graph_span: 'X Axis Span',
   stacked: 'Stacked',
   update_interval: 'Update Interval',
   update_delay: 'Update Delay',
@@ -96,7 +96,8 @@ const LABEL_MAP: Record<string, string> = {
   loading: 'Loading Spinner',
   last_updated: 'Last Updated',
   version: 'Show Version',
-  id: 'ID',
+  id: 'Name',
+  axis: 'Axis',
   opposite: 'Opposite',
   decimals: 'Decimals',
   align_to: 'Align To',
@@ -149,7 +150,7 @@ export function computeLabel(schema: HaFormSchema): string {
 }
 
 const HELPER_MAP: Record<string, string> = {
-  graph_span: 'Duration, e.g. 1h, 12h, 7d',
+  graph_span: 'How much time the x-axis covers (the visible time window). Examples: 1h, 12h, 7d, 30d. Defaults to 24h.',
   update_interval: 'e.g. 1min, 5min, 1h. Leave empty for state-based updates',
   update_delay: 'Default: 1500ms. Increase if last state not shown',
   locale: 'e.g. en, fr, de. Defaults to HA setting',
@@ -165,6 +166,8 @@ const HELPER_MAP: Record<string, string> = {
   unit: 'Override unit of measurement',
   float_precision: 'Decimal places when displaying values',
   section_mode: 'Enable when used in HA sections view',
+  id: 'Identifier referenced by series to bind to this axis (e.g. "left", "kwh").',
+  axis: 'Which side of the chart this axis is drawn on.',
   align_to: 'Force Y-axis ticks to align to this value',
   selection_span_text: 'e.g. 6h. Default: 1/4 of graph_span',
 };

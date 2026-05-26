@@ -1,13 +1,19 @@
-import { LitElement, html, TemplateResult, nothing } from 'lit';
+import { LitElement, html, TemplateResult, nothing, CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
+import { editorStyles } from '../styles';
 
 @customElement('apexcharts-card-yaml-editor')
 export class ApexChartsCardYamlEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public value?: unknown;
   @property({ type: String }) public label = '';
+  @property({ type: Boolean }) public readOnly = false;
   @state() private _invalid = false;
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _onChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
@@ -34,6 +40,7 @@ export class ApexChartsCardYamlEditor extends LitElement {
           .hass=${this.hass}
           .defaultValue=${this.value || {}}
           .label=${this.label}
+          .readOnly=${this.readOnly}
           @value-changed=${this._onChanged}
         ></ha-yaml-editor>
         ${this._invalid ? html`<div class="validation-error">Invalid YAML</div>` : nothing}

@@ -234,12 +234,14 @@ export const stylesApex: CSSResultGroup = css`
 
   .apexcharts-tooltip.apexcharts-theme-light {
     border: 1px solid #e3e3e3;
-    background: var(--card-background-color);
+    background: #ffffff;
+    color: #333333;
   }
 
   .apexcharts-tooltip.apexcharts-theme-dark {
-    color: #fff;
-    background: rgba(30, 30, 30, 0.8);
+    color: #ffffff;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .apexcharts-tooltip * {
@@ -253,8 +255,9 @@ export const stylesApex: CSSResultGroup = css`
   }
 
   .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title {
-    background: var(--primary-background-color);
+    background: #f5f5f5;
     border-bottom: 1px solid #ddd;
+    color: #333333;
   }
 
   .apexcharts-tooltip.apexcharts-theme-dark .apexcharts-tooltip-title {

@@ -1,7 +1,8 @@
-import { LitElement, html, TemplateResult } from 'lit';
+import { LitElement, html, TemplateResult, CSSResultGroup } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { ChartCardColorThreshold } from '../../types-config';
 import { computeColor } from '../../utils';
+import { editorStyles } from '../styles';
 
 const ICON_DELETE = 'M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z';
 const ICON_ADD = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
@@ -9,6 +10,10 @@ const ICON_ADD = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
 @customElement('apexcharts-card-color-threshold-editor')
 export class ApexChartsCardColorThresholdEditor extends LitElement {
   @property({ attribute: false }) public thresholds: ChartCardColorThreshold[] = [];
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _swatch(color?: string): string {
     if (!color) return 'transparent';

@@ -391,7 +391,7 @@ views:
             series:
               - entity: weather.openweathermap
                 name: Temperature
-                unit: °C
+                unit: Â°C
                 attribute: temperature
                 fill_raw: last
                 extend_to: false
@@ -401,7 +401,7 @@ views:
               - entity: weather.openweathermap
                 type: line
                 extend_to: false
-                unit: °C
+                unit: Â°C
                 show:
                   in_header: after_now
                 data_generator: |

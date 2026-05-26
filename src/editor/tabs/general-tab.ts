@@ -1,19 +1,20 @@
-import { LitElement, html, TemplateResult, nothing } from 'lit';
+import { LitElement, html, TemplateResult, nothing, CSSResultGroup } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { ChartCardChartType, ChartCardExternalConfig } from '../../types-config';
-import { GENERAL_SCHEMA } from '../schemas/general';
+import { GENERAL_BOTTOM_SCHEMA, GENERAL_TOP_SCHEMA, LAYOUT_SCHEMA } from '../schemas/general';
+import { editorStyles } from '../styles';
 import { computeHelper, computeLabel, fromSelectValue, isValidDuration, isValidOffset, toSelectValue } from '../helpers';
 import '../components/chart-type-picker';
+import '../components/bool-grid';
+import { BoolField } from '../components/bool-grid';
+import { HaFormSchema } from '../types';
 
 interface FormData {
   graph_span?: string;
-  stacked?: boolean;
-  section_mode?: boolean;
   update_interval?: string;
   update_delay?: string;
   layout?: string;
-  locale?: string;
   hours_12?: string;
   span?: {
     start?: string;
@@ -27,17 +28,18 @@ export class ApexChartsCardEditorGeneral extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public config?: ChartCardExternalConfig;
 
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
+
   private _formData(): FormData {
     if (!this.config) return {};
     const span = this.config.span || {};
     return {
       graph_span: this.config.graph_span,
-      stacked: this.config.stacked ?? false,
-      section_mode: this.config.section_mode ?? false,
       update_interval: this.config.update_interval,
       update_delay: this.config.update_delay,
       layout: this.config.layout || '',
-      locale: this.config.locale,
       hours_12: toSelectValue(this.config.hours_12),
       span: {
         start: span.start || '',
@@ -59,14 +61,6 @@ export class ApexChartsCardEditorGeneral extends LitElement {
       if (data.graph_span) newConfig.graph_span = data.graph_span;
       else delete newConfig.graph_span;
     }
-    if ('stacked' in data) {
-      if (data.stacked) newConfig.stacked = true;
-      else delete newConfig.stacked;
-    }
-    if ('section_mode' in data) {
-      if (data.section_mode) newConfig.section_mode = true;
-      else delete newConfig.section_mode;
-    }
     if ('update_interval' in data) {
       if (data.update_interval) newConfig.update_interval = data.update_interval;
       else delete newConfig.update_interval;
@@ -78,10 +72,6 @@ export class ApexChartsCardEditorGeneral extends LitElement {
     if ('layout' in data) {
       if (data.layout) newConfig.layout = data.layout;
       else delete newConfig.layout;
-    }
-    if ('locale' in data) {
-      if (data.locale) newConfig.locale = data.locale;
-      else delete newConfig.locale;
     }
     if ('hours_12' in data) {
       const v = fromSelectValue(data.hours_12);
@@ -111,7 +101,7 @@ export class ApexChartsCardEditorGeneral extends LitElement {
     if (!this.config) return nothing;
     const errors: string[] = [];
     if (this.config.graph_span && !isValidDuration(this.config.graph_span)) {
-      errors.push('Graph Span: invalid duration format (e.g. 1h, 12h, 7d).');
+      errors.push('X Axis Span: invalid duration format (e.g. 1h, 12h, 7d).');
     }
     if (this.config.update_interval && !isValidDuration(this.config.update_interval)) {
       errors.push('Update Interval: invalid duration format.');
@@ -126,8 +116,24 @@ export class ApexChartsCardEditorGeneral extends LitElement {
       errors.push('Span: only one of "Start" or "End" is allowed.');
     }
     if (errors.length === 0) return nothing;
-    return html`<div class="validation-error">${errors.map((e) => html`<div>• ${e}</div>`)}</div>`;
+    return html`<div class="validation-error">${errors.map((e) => html`<div>â€¢ ${e}</div>`)}</div>`;
   }
+
+  private _boolChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    if (!this.config) return;
+    const { name, value } = ev.detail as { name: string; value: boolean };
+    const next: ChartCardExternalConfig = { ...this.config };
+    if (value) (next as Record<string, unknown>)[name] = true;
+    else delete (next as Record<string, unknown>)[name];
+    this.dispatchEvent(
+      new CustomEvent('config-changed', {
+        detail: { config: next },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  };
 
   private _chartTypeChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
@@ -147,6 +153,14 @@ export class ApexChartsCardEditorGeneral extends LitElement {
 
   protected render(): TemplateResult {
     if (!this.config || !this.hass) return html``;
+    const data = this._formData();
+    const stackedFields: BoolField[] = [
+      {
+        name: 'stacked',
+        label: computeLabel({ name: 'stacked' } as HaFormSchema),
+        value: this.config.stacked ?? false,
+      },
+    ];
     return html`
       <div class="section">
         <div>
@@ -160,8 +174,31 @@ export class ApexChartsCardEditorGeneral extends LitElement {
         </div>
         <ha-form
           .hass=${this.hass}
-          .data=${this._formData()}
-          .schema=${GENERAL_SCHEMA}
+          .data=${data}
+          .schema=${GENERAL_TOP_SCHEMA}
+          .computeLabel=${computeLabel}
+          .computeHelper=${computeHelper}
+          @value-changed=${this._onValueChanged}
+        ></ha-form>
+        <div class="layout-stacked-row">
+          <apexcharts-card-bool-grid
+            .fields=${stackedFields}
+            .columns=${1}
+            @value-changed=${this._boolChanged}
+          ></apexcharts-card-bool-grid>
+          <ha-form
+            .hass=${this.hass}
+            .data=${data}
+            .schema=${LAYOUT_SCHEMA}
+            .computeLabel=${computeLabel}
+            .computeHelper=${computeHelper}
+            @value-changed=${this._onValueChanged}
+          ></ha-form>
+        </div>
+        <ha-form
+          .hass=${this.hass}
+          .data=${data}
+          .schema=${GENERAL_BOTTOM_SCHEMA}
           .computeLabel=${computeLabel}
           .computeHelper=${computeHelper}
           @value-changed=${this._onValueChanged}

@@ -1,6 +1,7 @@
-import { LitElement, html, TemplateResult } from 'lit';
+import { LitElement, html, TemplateResult, CSSResultGroup } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { ChartCardChartType } from '../../types-config';
+import { editorStyles } from '../styles';
 
 interface ChartTypeOption {
   value: ChartCardChartType | '';
@@ -19,6 +20,10 @@ const OPTIONS: ChartTypeOption[] = [
 @customElement('apexcharts-card-chart-type-picker')
 export class ApexChartsCardChartTypePicker extends LitElement {
   @property({ type: String }) public value?: string;
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _select(v: ChartCardChartType | ''): void {
     this.dispatchEvent(

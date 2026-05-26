@@ -1,7 +1,8 @@
-import { LitElement, html, TemplateResult } from 'lit';
+import { LitElement, html, TemplateResult, CSSResultGroup } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { ActionsConfig, ActionConfig } from '../../types-config';
+import { editorStyles } from '../styles';
 import './action-editor';
 
 @customElement('apexcharts-card-actions-editor')
@@ -9,6 +10,10 @@ export class ApexChartsCardActionsEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public actions?: ActionsConfig;
   @property({ attribute: false }) public showEntityOverride = true;
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _update(key: keyof ActionsConfig, value: ActionConfig | string | undefined): void {
     const next: ActionsConfig = { ...(this.actions || {}) };

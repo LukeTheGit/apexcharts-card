@@ -1,18 +1,32 @@
-import { LitElement, html, TemplateResult, nothing } from 'lit';
+import { LitElement, html, TemplateResult, nothing, CSSResultGroup } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { ChartCardYAxisExternal } from '../../types-config';
 import { HaFormSchema } from '../types';
+import { editorStyles } from '../styles';
 import { computeHelper, computeLabel, isValidYaxisLimit } from '../helpers';
+import { BoolField } from './bool-grid';
+import './bool-grid';
 
+// `show` boolean rendered via bool-grid; rest stays in ha-form
 const SCHEMA: HaFormSchema[] = [
-  { name: 'id', selector: { text: {} } },
   {
     type: 'grid',
     name: '',
     schema: [
-      { name: 'show', selector: { boolean: {} } },
-      { name: 'opposite', selector: { boolean: {} } },
+      { name: 'id', selector: { text: {} } },
+      {
+        name: 'axis',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: [
+              { value: 'left', label: 'Left' },
+              { value: 'right', label: 'Right' },
+            ],
+          },
+        },
+      },
     ],
   },
   {
@@ -37,19 +51,84 @@ const SCHEMA: HaFormSchema[] = [
 export class ApexChartsCardYAxisItemEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public yaxis?: ChartCardYAxisExternal;
+  // Labels (apex_config.yaxis[i].labels) â€” handled separately from the yaxis core fields.
+  @property({ type: Boolean }) public labelsShow = true;
+  @property({ type: String }) public labelsFormatterBody = '';
+  // Tick amount (apex_config.yaxis[i].tickAmount) â€” handled separately
+  @property({ type: Number }) public tickAmount?: number;
+
+  static get styles(): CSSResultGroup {
+    return editorStyles;
+  }
 
   private _formData(): Record<string, unknown> {
     const y = this.yaxis || {};
     return {
       id: y.id || '',
-      show: y.show ?? true,
-      opposite: y.opposite ?? false,
+      axis: y.opposite ? 'right' : 'left',
       min: y.min === undefined ? '' : String(y.min),
       max: y.max === undefined ? '' : String(y.max),
       decimals: y.decimals,
       align_to: y.align_to,
     };
   }
+
+  private _showChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    const { value } = ev.detail as { name: string; value: boolean };
+    const next: ChartCardYAxisExternal = { ...(this.yaxis || {}) };
+    // show defaults to true; persist only the explicit `false`
+    if (value === false) next.show = false;
+    else delete next.show;
+    this.dispatchEvent(
+      new CustomEvent('value-changed', {
+        detail: { value: next },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  };
+
+  private _fireLabels(show: boolean | undefined, formatterBody: string): void {
+    this.dispatchEvent(
+      new CustomEvent('labels-changed', {
+        detail: { show, formatterBody },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  private _labelsShowChanged = (ev: CustomEvent): void => {
+    ev.stopPropagation();
+    const { value } = ev.detail as { name: string; value: boolean };
+    // Default is true; persist only the explicit `false`
+    this._fireLabels(value === false ? false : undefined, this.labelsFormatterBody);
+  };
+
+  private _labelsFormatterChanged = (ev: Event): void => {
+    const body = (ev.target as HTMLInputElement | HTMLTextAreaElement).value;
+    this._fireLabels(this.labelsShow === false ? false : undefined, body);
+  };
+
+  private _tickAmountChanged = (ev: Event): void => {
+    const raw = (ev.target as HTMLInputElement).value;
+    const trimmed = raw.trim();
+    let value: number | undefined;
+    if (trimmed === '') {
+      value = undefined;
+    } else {
+      const n = Number(trimmed);
+      value = isNaN(n) || n < 0 ? undefined : Math.floor(n);
+    }
+    this.dispatchEvent(
+      new CustomEvent('tick-amount-changed', {
+        detail: { value },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  };
 
   private _onChange = (ev: CustomEvent): void => {
     ev.stopPropagation();
@@ -59,12 +138,8 @@ export class ApexChartsCardYAxisItemEditor extends LitElement {
       if (data.id) next.id = data.id as string;
       else delete next.id;
     }
-    if ('show' in data) {
-      if (data.show === false) next.show = false;
-      else delete next.show;
-    }
-    if ('opposite' in data) {
-      if (data.opposite) next.opposite = true;
+    if ('axis' in data) {
+      if (data.axis === 'right') next.opposite = true;
       else delete next.opposite;
     }
     if ('min' in data) {
@@ -107,20 +182,83 @@ export class ApexChartsCardYAxisItemEditor extends LitElement {
       errors.push('Max: use number, "auto", "~N" (soft), or "|N|" (absolute).');
     }
     if (errors.length === 0) return nothing;
-    return html`<div class="validation-error">${errors.map((e) => html`<div>• ${e}</div>`)}</div>`;
+    return html`<div class="validation-error">${errors.map((e) => html`<div>â€¢ ${e}</div>`)}</div>`;
   }
 
   protected render(): TemplateResult {
     if (!this.hass) return html``;
+    const showFields: BoolField[] = [
+      {
+        name: 'show',
+        label: computeLabel({ name: 'show' } as HaFormSchema),
+        value: this.yaxis?.show ?? true,
+      },
+    ];
+    const labelsShowFields: BoolField[] = [
+      {
+        name: 'labels_show',
+        label: 'Show Labels',
+        helper: 'Toggle tick labels on this axis.',
+        value: this.labelsShow,
+      },
+    ];
     return html`
-      <ha-form
-        .hass=${this.hass}
-        .data=${this._formData()}
-        .schema=${SCHEMA}
-        .computeLabel=${computeLabel}
-        .computeHelper=${computeHelper}
-        @value-changed=${this._onChange}
-      ></ha-form>
+      <div class="section">
+        <ha-form
+          .hass=${this.hass}
+          .data=${this._formData()}
+          .schema=${SCHEMA}
+          .computeLabel=${computeLabel}
+          .computeHelper=${computeHelper}
+          @value-changed=${this._onChange}
+        ></ha-form>
+        <apexcharts-card-bool-grid
+          .fields=${showFields}
+          .columns=${1}
+          @value-changed=${this._showChanged}
+        ></apexcharts-card-bool-grid>
+        <div class="tick-amount-block">
+          <label class="tick-amount-label">Tick Amount</label>
+          <input
+            class="tick-amount-input"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="Auto"
+            .value=${this.tickAmount === undefined ? '' : String(this.tickAmount)}
+            @change=${this._tickAmountChanged}
+          />
+          <div class="tick-amount-helper">
+            Number of intervals shown between Min and Max on this axis. For a 0â€“10 range,
+            <code>10</code> produces ticks every <code>1</code> unit (at 0, 1, 2 â€¦ 10). For 0â€“100,
+            <code>10</code> would step every 10. Leave empty to use the ApexCharts default
+            (auto, usually 6).
+          </div>
+        </div>
+        <ha-expansion-panel outlined header="Labels">
+          <div class="section">
+            <apexcharts-card-bool-grid
+              .fields=${labelsShowFields}
+              .columns=${1}
+              @value-changed=${this._labelsShowChanged}
+            ></apexcharts-card-bool-grid>
+            <div class="formatter-block">
+              <label class="formatter-label">Formatter (JS function body)</label>
+              <textarea
+                class="formatter-textarea"
+                rows="4"
+                placeholder="return value + ' kWh';"
+                .value=${this.labelsFormatterBody}
+                @change=${this._labelsFormatterChanged}
+              ></textarea>
+              <div class="formatter-helper">
+                Receives the raw axis value as <code>value</code>. Saved as
+                <code>EVAL:function(value) { ... }</code> so apexcharts-card evaluates it at runtime.
+              </div>
+            </div>
+          </div>
+        </ha-expansion-panel>
+      </div>
       ${this._validation()}
     `;
   }

@@ -25,62 +25,52 @@ export const SERIES_CORE_SCHEMA: HaFormSchema[] = [
   },
 ];
 
-// ── Data processing ──
-export const SERIES_DATA_PROCESSING_SCHEMA: HaFormSchema[] = [
+// Inner fields of the Group By expander (start_with_last rendered separately via bool-grid)
+export const SERIES_GROUP_BY_SCHEMA: HaFormSchema[] = [
   {
-    name: 'group_by',
-    type: 'expandable',
-    title: 'Group By',
+    type: 'grid',
+    name: '',
     schema: [
+      { name: 'duration', selector: { text: {} } },
       {
-        type: 'grid',
-        name: '',
-        schema: [
-          { name: 'duration', selector: { text: {} } },
-          {
-            name: 'func',
-            selector: {
-              select: {
-                mode: 'dropdown',
-                options: [
-                  { value: 'raw', label: 'Raw' },
-                  { value: 'avg', label: 'Average' },
-                  { value: 'min', label: 'Min' },
-                  { value: 'max', label: 'Max' },
-                  { value: 'last', label: 'Last' },
-                  { value: 'first', label: 'First' },
-                  { value: 'sum', label: 'Sum' },
-                  { value: 'median', label: 'Median' },
-                  { value: 'delta', label: 'Delta' },
-                  { value: 'diff', label: 'Diff' },
-                ],
-              },
-            },
+        name: 'func',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: [
+              { value: 'raw', label: 'Raw' },
+              { value: 'avg', label: 'Average' },
+              { value: 'min', label: 'Min' },
+              { value: 'max', label: 'Max' },
+              { value: 'last', label: 'Last' },
+              { value: 'first', label: 'First' },
+              { value: 'sum', label: 'Sum' },
+              { value: 'median', label: 'Median' },
+              { value: 'delta', label: 'Delta' },
+              { value: 'diff', label: 'Diff' },
+            ],
           },
-        ],
-      },
-      {
-        type: 'grid',
-        name: '',
-        schema: [
-          {
-            name: 'fill',
-            selector: {
-              select: {
-                mode: 'dropdown',
-                options: [
-                  { value: 'last', label: 'Last' },
-                  { value: 'null', label: 'Null' },
-                  { value: 'zero', label: 'Zero' },
-                ],
-              },
-            },
-          },
-          { name: 'start_with_last', selector: { boolean: {} } },
-        ],
+        },
       },
     ],
   },
+  {
+    name: 'fill',
+    selector: {
+      select: {
+        mode: 'dropdown',
+        options: [
+          { value: 'last', label: 'Last' },
+          { value: 'null', label: 'Null' },
+          { value: 'zero', label: 'Zero' },
+        ],
+      },
+    },
+  },
+];
+
+// ── Data processing ── (group_by rendered separately as a custom panel)
+export const SERIES_DATA_PROCESSING_SCHEMA: HaFormSchema[] = [
   {
     name: 'statistics',
     type: 'expandable',
@@ -197,76 +187,38 @@ export const SERIES_APPEARANCE_SCHEMA: HaFormSchema[] = [
     ],
   },
   {
-    type: 'grid',
-    name: '',
-    schema: [
-      {
-        name: 'extend_to',
-        selector: {
-          select: {
-            mode: 'dropdown',
-            options: [
-              { value: SEL_UNDEFINED, label: 'Default' },
-              { value: 'end', label: 'End' },
-              { value: 'now', label: 'Now' },
-              { value: SEL_FALSE, label: 'Disabled' },
-            ],
-          },
-        },
+    name: 'extend_to',
+    selector: {
+      select: {
+        mode: 'dropdown',
+        options: [
+          { value: SEL_UNDEFINED, label: 'Default' },
+          { value: 'end', label: 'End' },
+          { value: 'now', label: 'Now' },
+          { value: SEL_FALSE, label: 'Disabled' },
+        ],
       },
-      { name: 'invert', selector: { boolean: {} } },
-    ],
+    },
   },
 ];
 
-// ── Visibility (show.*) ──
-export const SERIES_VISIBILITY_SCHEMA: HaFormSchema[] = [
+// Visibility selects (booleans are rendered separately via bool-grid)
+export const SERIES_VISIBILITY_SELECT_SCHEMA: HaFormSchema[] = [
   {
-    type: 'grid',
-    name: '',
-    schema: [
-      { name: 'in_chart', selector: { boolean: {} } },
-      {
-        name: 'in_header',
-        selector: {
-          select: {
-            mode: 'dropdown',
-            options: [
-              { value: SEL_UNDEFINED, label: 'Default' },
-              { value: SEL_TRUE, label: 'Yes' },
-              { value: SEL_FALSE, label: 'No' },
-              { value: 'raw', label: 'Raw' },
-              { value: 'before_now', label: 'Before Now' },
-              { value: 'after_now', label: 'After Now' },
-            ],
-          },
-        },
+    name: 'in_header',
+    selector: {
+      select: {
+        mode: 'dropdown',
+        options: [
+          { value: SEL_UNDEFINED, label: 'Default' },
+          { value: SEL_TRUE, label: 'Yes' },
+          { value: SEL_FALSE, label: 'No' },
+          { value: 'raw', label: 'Raw' },
+          { value: 'before_now', label: 'Before Now' },
+          { value: 'after_now', label: 'After Now' },
+        ],
       },
-    ],
-  },
-  {
-    type: 'grid',
-    name: '',
-    schema: [
-      { name: 'in_legend', selector: { boolean: {} } },
-      { name: 'legend_value', selector: { boolean: {} } },
-    ],
-  },
-  {
-    type: 'grid',
-    name: '',
-    schema: [
-      { name: 'name_in_header', selector: { boolean: {} } },
-      { name: 'offset_in_name', selector: { boolean: {} } },
-    ],
-  },
-  {
-    type: 'grid',
-    name: '',
-    schema: [
-      { name: 'null_in_header', selector: { boolean: {} } },
-      { name: 'zero_in_header', selector: { boolean: {} } },
-    ],
+    },
   },
   {
     name: 'as_duration',
@@ -318,6 +270,17 @@ export const SERIES_VISIBILITY_SCHEMA: HaFormSchema[] = [
       },
     },
   },
+];
+
+// Visibility booleans - rendered via bool-grid. Each entry tracks its default value.
+export const SERIES_VISIBILITY_BOOL_FIELDS: { name: string; defaultValue: boolean }[] = [
+  { name: 'in_chart', defaultValue: true },
+  { name: 'in_legend', defaultValue: true },
+  { name: 'legend_value', defaultValue: true },
+  { name: 'name_in_header', defaultValue: true },
+  { name: 'offset_in_name', defaultValue: true },
+  { name: 'null_in_header', defaultValue: true },
+  { name: 'zero_in_header', defaultValue: true },
 ];
 
 // ── Advanced ──
