@@ -1,5 +1,9 @@
 ## [2.3.0]
 
+### Features
+
+* Add visual editor UI for configuring apexcharts-card from the Lovelace card picker, with tabs for general, display and advanced options plus dedicated editors for series, yaxis, annotations, header, actions and color thresholds.
+
 ## [2.2.3](https://github.com/RomRider/apexcharts-card/compare/v2.2.2...v2.2.3) (2025-08-21)
 
 ### Bug Fixes

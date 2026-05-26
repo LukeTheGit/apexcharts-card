@@ -1,6 +1,3 @@
 /node_modules/
 /dist/
 .DS_Store
-docs/editor-plan-architecture.md
-docs/editor-plan-implementation.md
-docs/editor-plan-ui.md
