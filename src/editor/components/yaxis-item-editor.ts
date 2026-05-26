@@ -143,16 +143,26 @@ export class ApexChartsCardYAxisItemEditor extends LitElement {
       else delete next.opposite;
     }
     if ('min' in data) {
-      const v = data.min as string;
-      if (v === '' || v === undefined || v === null) delete next.min;
-      else if (!isNaN(Number(v)) && !v.startsWith('~') && !v.startsWith('|')) next.min = Number(v);
-      else next.min = v;
+      const raw = (data.min as string | undefined) ?? '';
+      const v = typeof raw === 'string' ? raw.trim() : String(raw);
+      if (v === '' || data.min === undefined || data.min === null) {
+        delete next.min;
+      } else if (!isNaN(Number(v)) && !v.startsWith('~') && !v.startsWith('|')) {
+        next.min = Number(v);
+      } else {
+        next.min = v;
+      }
     }
     if ('max' in data) {
-      const v = data.max as string;
-      if (v === '' || v === undefined || v === null) delete next.max;
-      else if (!isNaN(Number(v)) && !v.startsWith('~') && !v.startsWith('|')) next.max = Number(v);
-      else next.max = v;
+      const raw = (data.max as string | undefined) ?? '';
+      const v = typeof raw === 'string' ? raw.trim() : String(raw);
+      if (v === '' || data.max === undefined || data.max === null) {
+        delete next.max;
+      } else if (!isNaN(Number(v)) && !v.startsWith('~') && !v.startsWith('|')) {
+        next.max = Number(v);
+      } else {
+        next.max = v;
+      }
     }
     if ('decimals' in data) {
       if (data.decimals === undefined || data.decimals === '') delete next.decimals;

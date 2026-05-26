@@ -22,7 +22,7 @@ const serveopts = {
 const plugins = [
   nodeResolve({}),
   commonjs(),
-  typescript({ include: ['src/**/*.ts'], check: false }),
+  typescript({ include: ['src/**/*.ts'] }),
   json(),
   babel({
     exclude: 'node_modules/**',
@@ -51,10 +51,12 @@ const plugins = [
 export default [
   {
     input: 'src/apexcharts-card.ts',
+    preserveEntrySignatures: false,
     output: {
-      file: './dist/apexcharts-card.js',
+      dir: './dist',
       format: 'es',
-      inlineDynamicImports: true,
+      entryFileNames: 'apexcharts-card.js',
+      chunkFileNames: '[name]-[hash].js',
       sourcemap: dev ? true : false,
       globals: {
         apexcharts: 'ApexCharts',

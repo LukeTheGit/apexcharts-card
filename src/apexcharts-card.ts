@@ -41,7 +41,8 @@ import {
   isUsingServerTimezone,
   computeTimezoneDiffWithLocal,
 } from './utils';
-import ApexCharts, { ApexYAxis } from 'apexcharts';
+import ApexCharts from 'apexcharts';
+// ApexYAxis is declared globally in apexcharts/types/apexcharts.d.ts (no top-level import/export → ambient)
 import { Ripple } from '@material/mwc-ripple';
 import { stylesApex } from './styles';
 import { HassEntity } from 'home-assistant-js-websocket';

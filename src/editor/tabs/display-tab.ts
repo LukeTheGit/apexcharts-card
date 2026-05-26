@@ -143,8 +143,13 @@ export class ApexChartsCardEditorDisplay extends LitElement {
     };
     const path = pathMap[name];
     if (!path) return;
-    // Only persist explicit false. ApexCharts defaults to true for these.
-    this._setApex(path, value ? undefined : false);
+    // ApexCharts defaults: grid.show=true, grid.yaxis.lines.show=true, grid.xaxis.lines.show=false.
+    // For fields that default to true, persist only explicit false. For xaxis lines, persist only explicit true.
+    if (name === 'xaxis_lines_show') {
+      this._setApex(path, value ? true : undefined);
+    } else {
+      this._setApex(path, value ? undefined : false);
+    }
   };
 
   // Legend
@@ -244,13 +249,12 @@ export class ApexChartsCardEditorDisplay extends LitElement {
         if (it.value !== undefined && it.value !== '') {
           const raw = String(it.value).trim();
           const asNum = Number(raw);
-          if (!isNaN(asNum)) {
-            // Already a millisecond timestamp
+          if (!isNaN(asNum) && /^[\d.+-eE]+$/.test(raw)) {
+            // Numeric input -> keep as ms timestamp
             out.x = asNum;
           } else {
-            // Try parsing as a date string -> millisecond timestamp
-            const parsed = Date.parse(raw);
-            out.x = isNaN(parsed) ? raw : parsed;
+            // Preserve date string; ApexCharts parses it at render time
+            out.x = raw;
           }
         }
       } else {
@@ -317,11 +321,14 @@ export class ApexChartsCardEditorDisplay extends LitElement {
         yaxis_lines_show: 'grid.yaxis.lines.show',
       };
       const raw = getApexValue(cfg, pathMap[f.name]);
+      // ApexCharts defaults: grid.show=true, grid.yaxis.lines.show=true, grid.xaxis.lines.show=false.
+      const defaultsTrue = f.name !== 'xaxis_lines_show';
+      const value = raw === undefined ? defaultsTrue : raw !== false;
       return {
         name: f.name,
         label: f.label,
         helper: f.helper,
-        value: raw === false ? false : true,
+        value,
       };
     });
     const gridSelectData = {

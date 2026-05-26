@@ -124,8 +124,8 @@ export class ApexChartsCardEditorGeneral extends LitElement {
     if (!this.config) return;
     const { name, value } = ev.detail as { name: string; value: boolean };
     const next: ChartCardExternalConfig = { ...this.config };
-    if (value) (next as Record<string, unknown>)[name] = true;
-    else delete (next as Record<string, unknown>)[name];
+    if (value) (next as unknown as Record<string, unknown>)[name] = true;
+    else delete (next as unknown as Record<string, unknown>)[name];
     this.dispatchEvent(
       new CustomEvent('config-changed', {
         detail: { config: next },

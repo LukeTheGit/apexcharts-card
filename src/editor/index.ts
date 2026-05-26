@@ -25,7 +25,7 @@ export class ApexChartsCardEditor extends LitElement {
     const configDup = JSON.parse(JSON.stringify(config));
     // Migrate legacy 'entities' key (same as the card's setConfig does)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((configDup as any).entities && !configDup.series) {
+    if ((configDup as any).entities) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       configDup.series = (configDup as any).entities;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

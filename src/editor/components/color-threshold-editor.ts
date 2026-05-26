@@ -72,7 +72,11 @@ export class ApexChartsCardColorThresholdEditor extends LitElement {
                     .value=${t.value !== undefined ? String(t.value) : ''}
                     @change=${(ev: Event) => {
                       const v = (ev.target as HTMLInputElement).value;
-                      this._update(i, 'value', v === '' ? undefined : Number(v));
+                      if (v === '') {
+                        this._remove(i);
+                      } else {
+                        this._update(i, 'value', Number(v));
+                      }
                     }}
                   ></ha-textfield>
                   <div class="color-field">

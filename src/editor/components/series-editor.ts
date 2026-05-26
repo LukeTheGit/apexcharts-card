@@ -23,6 +23,7 @@ export class ApexChartsCardSeriesEditor extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public config?: ChartCardExternalConfig;
   @state() private _expanded: Record<number, boolean> = {};
+  @state() private _draftIndex?: number;
 
   static get styles(): CSSResultGroup {
     return editorStyles;
@@ -77,13 +78,22 @@ export class ApexChartsCardSeriesEditor extends LitElement {
 
   private _add(): void {
     if (!this.config) return;
-    const series = [...(this.config.series || []), { entity: '' } as ChartCardSeriesExternalConfig];
-    this._expanded = { ...this._expanded, [series.length - 1]: true };
-    this._fire({ series });
+    if (this._draftIndex != null) return;
+    const realLength = (this.config.series || []).length;
+    this._draftIndex = realLength;
+    this._expanded = { ...this._expanded, [realLength]: true };
   }
 
   private _remove(index: number): void {
     if (!this.config) return;
+    if (this._draftIndex != null && index === this._draftIndex) {
+      // Removing the draft row — just drop it locally, no config-changed fired.
+      const newExpanded: Record<number, boolean> = { ...this._expanded };
+      delete newExpanded[index];
+      this._expanded = newExpanded;
+      this._draftIndex = undefined;
+      return;
+    }
     const series = [...(this.config.series || [])];
     if (series.length <= 1) return;
     series.splice(index, 1);
@@ -94,11 +104,17 @@ export class ApexChartsCardSeriesEditor extends LitElement {
       else if (n > index) newExpanded[n - 1] = this._expanded[n];
     }
     this._expanded = newExpanded;
+    // Adjust draft index if any (draft sits after real series)
+    if (this._draftIndex != null && this._draftIndex > index) {
+      this._draftIndex = this._draftIndex - 1;
+    }
     this._fire({ series });
   }
 
   private _move(index: number, delta: -1 | 1): void {
     if (!this.config) return;
+    // Do not move the draft row.
+    if (this._draftIndex != null && index === this._draftIndex) return;
     const series = [...(this.config.series || [])];
     const target = index + delta;
     if (target < 0 || target >= series.length) return;
@@ -113,6 +129,14 @@ export class ApexChartsCardSeriesEditor extends LitElement {
     ev.stopPropagation();
     if (!this.config) return;
     const updatedSeries = ev.detail.series as ChartCardSeriesExternalConfig;
+    // Draft case: only commit to config once the user actually picks an entity.
+    if (this._draftIndex != null && index === this._draftIndex) {
+      if (!updatedSeries.entity) return;
+      const series = [...(this.config.series || []), updatedSeries];
+      this._draftIndex = undefined;
+      this._fire({ series });
+      return;
+    }
     const series = [...(this.config.series || [])];
     series[index] = updatedSeries;
     this._fire({ series });
@@ -131,12 +155,16 @@ export class ApexChartsCardSeriesEditor extends LitElement {
   protected render(): TemplateResult {
     if (!this.config || !this.hass) return html``;
     const series = this.config.series || [];
+    const renderedSeries: ChartCardSeriesExternalConfig[] =
+      this._draftIndex != null ? [...series, { entity: '' } as ChartCardSeriesExternalConfig] : series;
     const canDelete = series.length > 1;
 
     return html`
       <div class="list-editor">
-        ${series.map((s, i) => {
+        ${renderedSeries.map((s, i) => {
           const expanded = !!this._expanded[i];
+          const isDraft = this._draftIndex != null && i === this._draftIndex;
+          const removable = isDraft || canDelete;
           return html`
             <div class="list-item">
               <div class="list-item-header" @click=${() => this._toggle(i)}>
@@ -147,19 +175,19 @@ export class ApexChartsCardSeriesEditor extends LitElement {
                   <ha-icon-button
                     .path=${ICON_UP}
                     .label=${'Move up'}
-                    .disabled=${i === 0}
+                    .disabled=${i === 0 || isDraft}
                     @click=${() => this._move(i, -1)}
                   ></ha-icon-button>
                   <ha-icon-button
                     .path=${ICON_DOWN}
                     .label=${'Move down'}
-                    .disabled=${i === series.length - 1}
+                    .disabled=${i === renderedSeries.length - 1 || isDraft}
                     @click=${() => this._move(i, 1)}
                   ></ha-icon-button>
                   <ha-icon-button
                     .path=${ICON_DELETE}
                     .label=${'Delete'}
-                    .disabled=${!canDelete}
+                    .disabled=${!removable}
                     @click=${() => this._remove(i)}
                   ></ha-icon-button>
                   <ha-icon-button

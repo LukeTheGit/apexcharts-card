@@ -333,6 +333,10 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
       .filter((y) => y.id)
       .map((y) => ({ value: y.id as string, label: y.id as string }));
     if (options.length === 0) return [];
+    const currentId = (this.series as ChartCardSeriesExternalConfig | undefined)?.yaxis_id;
+    if (currentId && !options.some((o) => o.value === currentId)) {
+      options.push({ value: currentId, label: `${currentId} (missing)` });
+    }
     return [
       {
         name: 'yaxis_id',
@@ -349,7 +353,12 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
   private _yaxisIdChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
     const data = ev.detail.value as { yaxis_id?: string };
-    this._fire({ yaxis_id: data.yaxis_id || undefined } as Partial<Series>);
+    const updates: Partial<Series> = {};
+    if ('yaxis_id' in data) {
+      (updates as Partial<ChartCardSeriesExternalConfig>).yaxis_id = data.yaxis_id || undefined;
+    }
+    if (Object.keys(updates).length === 0) return;
+    this._fire(updates);
   };
 
 

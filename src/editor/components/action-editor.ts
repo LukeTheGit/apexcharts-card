@@ -120,40 +120,83 @@ export class ApexChartsCardActionEditor extends LitElement {
   private _onValueChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
     const data = ev.detail.value as FormData;
+    const actionType = data.action;
 
     let next: ActionConfig | undefined;
-    const actionType = data.action;
 
     if (!actionType || actionType === 'default') {
       next = undefined;
-    } else if (actionType === 'call-service') {
-      next = {
-        action: 'call-service',
-        service: data.service || '',
-      } as ActionConfig;
-    } else if (actionType === 'navigate') {
-      next = {
-        action: 'navigate',
-        navigation_path: data.navigation_path || '',
-      } as ActionConfig;
-    } else if (actionType === 'url') {
-      next = {
-        action: 'url',
-        url_path: data.url_path || '',
-      } as ActionConfig;
-    } else if (actionType === 'more-info') {
-      const out: { action: 'more-info'; entity?: string } = { action: 'more-info' };
-      if (data.entity) out.entity = data.entity;
-      next = out as ActionConfig;
     } else {
-      next = { action: actionType } as ActionConfig;
-    }
-
-    if (next) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const n = next as any;
-      if (data.haptic) n.haptic = data.haptic;
-      if (data.confirmation_text) n.confirmation = { text: data.confirmation_text };
+      const prev = (this.action || {}) as any;
+      const prevType: string | undefined = prev.action;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const merged: any = { ...prev };
+
+      // If the action type changed, drop keys that belonged to the old type
+      // (so a stale `service` doesn't linger on a `navigate` action).
+      if (prevType && prevType !== actionType) {
+        const TYPE_KEYS: Record<string, string[]> = {
+          'call-service': ['service'],
+          navigate: ['navigation_path'],
+          url: ['url_path'],
+          'more-info': ['entity'],
+        };
+        const oldKeys = TYPE_KEYS[prevType] || [];
+        for (const k of oldKeys) delete merged[k];
+      }
+
+      merged.action = actionType;
+
+      // Overwrite only the keys that belong to the chosen action type.
+      if (actionType === 'call-service') {
+        merged.service = data.service || '';
+      } else if (actionType === 'navigate') {
+        merged.navigation_path = data.navigation_path || '';
+      } else if (actionType === 'url') {
+        merged.url_path = data.url_path || '';
+      } else if (actionType === 'more-info') {
+        if (data.entity) {
+          merged.entity = data.entity;
+        } else {
+          delete merged.entity;
+        }
+      }
+
+      // Haptic: empty string clears it, otherwise set.
+      if (data.haptic === '' || data.haptic === undefined) {
+        delete merged.haptic;
+      } else {
+        merged.haptic = data.haptic;
+      }
+
+      // Confirmation: preserve non-text confirmation state (boolean true, or
+      // object with keys beyond `text`) when the user hasn't typed text.
+      const prevConfirmation = prev.confirmation;
+      if (data.confirmation_text) {
+        if (prevConfirmation && typeof prevConfirmation === 'object') {
+          merged.confirmation = { ...prevConfirmation, text: data.confirmation_text };
+        } else {
+          merged.confirmation = { text: data.confirmation_text };
+        }
+      } else {
+        // No text typed. Keep confirmation only if it carries other meaning.
+        if (prevConfirmation === true) {
+          merged.confirmation = true;
+        } else if (
+          prevConfirmation &&
+          typeof prevConfirmation === 'object' &&
+          Object.keys(prevConfirmation).some((k) => k !== 'text')
+        ) {
+          const rest: Record<string, unknown> = { ...(prevConfirmation as Record<string, unknown>) };
+          delete rest.text;
+          merged.confirmation = rest;
+        } else {
+          delete merged.confirmation;
+        }
+      }
+
+      next = merged as ActionConfig;
     }
 
     this.dispatchEvent(

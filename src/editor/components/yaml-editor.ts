@@ -1,5 +1,5 @@
-import { LitElement, html, TemplateResult, nothing, CSSResultGroup } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { LitElement, html, TemplateResult, nothing, CSSResultGroup, PropertyValues } from 'lit';
+import { customElement, property, state, query } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { editorStyles } from '../styles';
 
@@ -11,8 +11,23 @@ export class ApexChartsCardYamlEditor extends LitElement {
   @property({ type: Boolean }) public readOnly = false;
   @state() private _invalid = false;
 
+  // ha-yaml-editor consumes `defaultValue` only on initial mount; we push later updates via setValue().
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  @query('ha-yaml-editor') private _yamlEditor?: any;
+
   static get styles(): CSSResultGroup {
     return editorStyles;
+  }
+
+  protected updated(changed: PropertyValues): void {
+    if (changed.has('value') && this._yamlEditor && typeof this._yamlEditor.setValue === 'function') {
+      const incoming = this.value || {};
+      const previous = changed.get('value');
+      // Skip if value is identical (avoid clobbering user-typed text mid-edit when an unrelated re-render runs).
+      if (JSON.stringify(incoming) !== JSON.stringify(previous)) {
+        this._yamlEditor.setValue(incoming);
+      }
+    }
   }
 
   private _onChanged = (ev: CustomEvent): void => {

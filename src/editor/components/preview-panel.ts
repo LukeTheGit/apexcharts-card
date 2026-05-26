@@ -57,6 +57,7 @@ export class ApexChartsCardEditorPreview extends LitElement {
       this._error = undefined;
     } catch (e) {
       this._error = e instanceof Error ? e.message : String(e);
+      this._teardownCard();
     }
   }
 
