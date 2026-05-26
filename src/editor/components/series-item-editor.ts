@@ -79,8 +79,8 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
 
   private _entityChanged = (ev: CustomEvent): void => {
     ev.stopPropagation();
-    const value = ev.detail.value as string | undefined;
-    this._fire({ entity: value || '' } as Partial<ChartCardSeriesExternalConfig>);
+    const data = ev.detail.value as { entity?: string };
+    this._fire({ entity: data.entity || '' } as Partial<ChartCardSeriesExternalConfig>);
   };
 
   private _coreChanged = (ev: CustomEvent): void => {
@@ -395,13 +395,15 @@ export class ApexChartsCardSeriesItemEditor extends LitElement {
         ${this.isAllSeriesConfig
           ? nothing
           : html`
-              <ha-entity-picker
+              <ha-form
                 .hass=${this.hass}
-                .value=${s.entity || ''}
-                label="Entity"
-                allow-custom-entity
+                .data=${{ entity: s.entity || '' }}
+                .schema=${[
+                  { name: 'entity', selector: { entity: {} } } as HaFormSchema,
+                ]}
+                .computeLabel=${computeLabel}
                 @value-changed=${this._entityChanged}
-              ></ha-entity-picker>
+              ></ha-form>
               ${!s.entity
                 ? html`<div class="validation-error">Entity is required.</div>`
                 : nothing}

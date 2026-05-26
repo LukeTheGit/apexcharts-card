@@ -66,16 +66,23 @@ export class ApexChartsCardActionsEditor extends LitElement {
         ></apexcharts-card-action-editor>
         ${this.showEntityOverride
           ? html`
-              <ha-entity-picker
+              <ha-form
                 .hass=${this.hass}
-                .value=${a.entity || ''}
-                label="Entity Override (optional)"
-                allow-custom-entity
+                .data=${{ entity: a.entity || '' }}
+                .schema=${[
+                  {
+                    name: 'entity',
+                    selector: { entity: {} },
+                  } as unknown as import('../types').HaFormSchema,
+                ]}
+                .computeLabel=${(s: { name: string }) =>
+                  s.name === 'entity' ? 'Entity Override (optional)' : s.name}
                 @value-changed=${(ev: CustomEvent) => {
                   ev.stopPropagation();
-                  this._update('entity', ev.detail.value || undefined);
+                  const v = (ev.detail.value as { entity?: string }).entity;
+                  this._update('entity', v || undefined);
                 }}
-              ></ha-entity-picker>
+              ></ha-form>
             `
           : ''}
       </div>
