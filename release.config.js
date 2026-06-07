@@ -45,6 +45,9 @@ module.exports = {
       '@semantic-release/github',
       {
         assets: 'dist/*.js',
+        successComment: false,
+        failComment: false,
+        failTitle: false,
       },
     ],
   ],
