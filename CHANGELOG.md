@@ -1,3 +1,13 @@
+## [2.3.0](https://github.com/LukeTheGit/apexcharts-card/compare/v2.2.3...v2.3.0) (2026-06-07)
+
+### Features
+
+* apex charts ui ([8bec6eb](https://github.com/LukeTheGit/apexcharts-card/commit/8bec6eb0745ed68dde9f13691febc98da19c8777))
+
+### Bug Fixes
+
+* harden semantic-release github plugin for fork ([2bc45f7](https://github.com/LukeTheGit/apexcharts-card/commit/2bc45f71dbbaf2601c657d90b2000954d540124f))
+
 ## [2.3.0](https://github.com/RomRider/apexcharts-card/compare/v2.2.4...v2.3.0) (2026-05-26)
 
 ### Features
