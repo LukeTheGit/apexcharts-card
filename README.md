@@ -78,7 +78,7 @@ This card is available in [HACS](https://hacs.xyz/) (Home Assistant Community St
 
 ### Manual install
 
-1. Download and copy `apexcharts-card.js` from the [latest release](https://github.com/RomRider/apexcharts-card/releases/latest) into your `config/www` directory.
+1. Download and copy `apexcharts-card.js` from the [latest release](https://github.com/LukeTheGit/apexcharts-card/releases/latest) into your `config/www` directory.
 
 2. Add the resource reference as described below.
 
@@ -89,7 +89,7 @@ This card is available in [HACS](https://hacs.xyz/) (Home Assistant Community St
 2. Grab `apexcharts-card.js`:
 
 ```
-$ wget https://github.com/RomRider/apexcharts-card/releases/download/v2.3.0/apexcharts-card.js
+$ wget https://github.com/LukeTheGit/apexcharts-card/releases/download/v2.3.0/apexcharts-card.js
 ```
 
 3. Add the resource reference as described below.
