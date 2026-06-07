@@ -1,4 +1,4 @@
-## [2.2.3](https://github.com/RomRider/apexcharts-card/compare/v2.2.4...v2.3.0) (2026-05-26)
+## [2.3.0](https://github.com/RomRider/apexcharts-card/compare/v2.2.4...v2.3.0) (2026-05-26)
 
 ### Features
 
