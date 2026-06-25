@@ -1,3 +1,9 @@
+## [2.3.1](https://github.com/LukeTheGit/apexcharts-card/compare/v2.3.0...v2.3.1) (2026-06-25)
+
+### Bug Fixes
+
+* avoid "reading 'node'" crash when chart renders in zero-width container ([682c077](https://github.com/LukeTheGit/apexcharts-card/commit/682c077635408b75b648e3cfa6382a7c47f78b80))
+
 ## [2.3.0](https://github.com/LukeTheGit/apexcharts-card/compare/v2.2.3...v2.3.0) (2026-06-07)
 
 ### Features
