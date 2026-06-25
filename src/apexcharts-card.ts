@@ -132,6 +132,8 @@ class ChartsCard extends LitElement {
 
   private _loaded = false;
 
+  private _initialLoading = false;
+
   @property({ type: Boolean }) private _updating = false;
 
   private _graphs: (GraphEntry | undefined)[] | undefined;
@@ -783,35 +785,81 @@ class ChartsCard extends LitElement {
   }
 
   private async _initialLoad() {
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    await this.updateComplete;
-    if (isUsingServerTimezone(this._hass)) {
-      this._serverTimeOffset = computeTimezoneDiffWithLocal(this._hass?.config.time_zone);
-    }
-    const graph = this.shadowRoot?.querySelector('#graph');
-    const brush = this.shadowRoot?.querySelector('#brush');
-    if (!this._apexChart && graph && this._config) {
-      this._loaded = true;
-      const layout = getLayoutConfig(this._config, this._hass, this._graphs);
-      if (this._config.series_in_brush.length) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (layout as any).chart.id = Math.random().toString(36).substring(7);
+    // Guard against re-entrancy: updated()/connectedCallback() can both trigger
+    // _initialLoad() and we now await an arbitrary amount of time below (waiting
+    // for the card to be laid out). Without this guard two concurrent calls could
+    // both construct an ApexCharts instance.
+    if (this._initialLoading || this._apexChart) return;
+    this._initialLoading = true;
+    try {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await this.updateComplete;
+      if (isUsingServerTimezone(this._hass)) {
+        this._serverTimeOffset = computeTimezoneDiffWithLocal(this._hass?.config.time_zone);
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this._apexChart = new ApexCharts(graph as HTMLElement, layout as any);
-      const promises: Promise<unknown>[] = [];
-      promises.push(this._apexChart.render());
-      if (this._config.series_in_brush.length && brush) {
-        this._apexBrush = new ApexCharts(
-          brush as HTMLElement,
+      const graph = this.shadowRoot?.querySelector('#graph');
+      const brush = this.shadowRoot?.querySelector('#brush');
+      if (!this._apexChart && graph && this._config) {
+        // ApexCharts must not be rendered into a zero-width container. If it is
+        // (e.g. the card lives in a sections/grid view or a tab that has not been
+        // laid out / is hidden yet), ApexCharts builds a chart without its SVG
+        // graphical nodes. A later updateOptions() then dereferences an undefined
+        // SVG element and throws "Cannot read properties of undefined (reading
+        // 'node')" from one of its own internal (uncaught) promises, which our
+        // try/catch around updateOptions cannot intercept. Wait for a real size
+        // first; if it never comes, bail and let the next update retry.
+        if (!(await this._waitForSize(graph as HTMLElement))) {
+          return;
+        }
+        this._loaded = true;
+        const layout = getLayoutConfig(this._config, this._hass, this._graphs);
+        if (this._config.series_in_brush.length) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          getBrushLayoutConfig(this._config, this._hass, (layout as any).chart.id),
-        );
-        promises.push(this._apexBrush.render());
+          (layout as any).chart.id = Math.random().toString(36).substring(7);
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this._apexChart = new ApexCharts(graph as HTMLElement, layout as any);
+        const promises: Promise<unknown>[] = [];
+        promises.push(this._apexChart.render());
+        if (this._config.series_in_brush.length && brush) {
+          this._apexBrush = new ApexCharts(
+            brush as HTMLElement,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            getBrushLayoutConfig(this._config, this._hass, (layout as any).chart.id),
+          );
+          promises.push(this._apexBrush.render());
+        }
+        await Promise.all(promises);
+        this._firstDataLoad();
       }
-      await Promise.all(promises);
-      this._firstDataLoad();
+    } finally {
+      this._initialLoading = false;
     }
+  }
+
+  /**
+   * Resolves true once `el` has a non-zero width (i.e. it is laid out and
+   * visible), or false if that has not happened within `timeoutMs`. Used to
+   * avoid handing ApexCharts a zero-sized container, which produces a chart
+   * with no graphical nodes and crashes on the next update.
+   */
+  private _waitForSize(el: HTMLElement, timeoutMs = 5000): Promise<boolean> {
+    if (el.clientWidth > 0) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        observer.disconnect();
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      const observer = new ResizeObserver(() => {
+        if (el.clientWidth > 0) finish(true);
+      });
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      observer.observe(el);
+    });
   }
 
   private async _updateData() {
