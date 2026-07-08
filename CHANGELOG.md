@@ -1,3 +1,9 @@
+## [2.3.2](https://github.com/LukeTheGit/apexcharts-card/compare/v2.3.1...v2.3.2) (2026-07-08)
+
+### Bug Fixes
+
+* detect and rebuild ApexCharts instances that mounted without an SVG root ([62d2b91](https://github.com/LukeTheGit/apexcharts-card/commit/62d2b91ad0245de4b8992c53e5be1cb3fb5d5b27))
+
 ## [2.3.1](https://github.com/LukeTheGit/apexcharts-card/compare/v2.3.0...v2.3.1) (2026-06-25)
 
 ### Bug Fixes
