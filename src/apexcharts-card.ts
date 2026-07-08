@@ -293,14 +293,14 @@ class ChartsCard extends LitElement {
 
   private _reset() {
     if (this._apexChart) {
-      this._apexChart.destroy();
+      this._safeDestroy(this._apexChart);
       this._apexChart = undefined;
       this._loaded = false;
       this._dataLoaded = false;
       this._updating = false;
       this._serverTimeOffset = 0;
       if (this._apexBrush) {
-        this._apexBrush.destroy();
+        this._safeDestroy(this._apexBrush);
         this._apexBrush = undefined;
         this._brushInit = false;
       }
@@ -817,19 +817,42 @@ class ChartsCard extends LitElement {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (layout as any).chart.id = Math.random().toString(36).substring(7);
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this._apexChart = new ApexCharts(graph as HTMLElement, layout as any);
-        const promises: Promise<unknown>[] = [];
-        promises.push(this._apexChart.render());
-        if (this._config.series_in_brush.length && brush) {
-          this._apexBrush = new ApexCharts(
-            brush as HTMLElement,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            getBrushLayoutConfig(this._config, this._hass, (layout as any).chart.id),
-          );
-          promises.push(this._apexBrush.render());
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          this._apexChart = new ApexCharts(graph as HTMLElement, layout as any);
+          const promises: Promise<unknown>[] = [];
+          promises.push(this._apexChart.render());
+          if (this._config.series_in_brush.length && brush) {
+            this._apexBrush = new ApexCharts(
+              brush as HTMLElement,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              getBrushLayoutConfig(this._config, this._hass, (layout as any).chart.id),
+            );
+            promises.push(this._apexBrush.render());
+          }
+          await Promise.all(promises);
+        } catch (err) {
+          // render() rejects when the container was detached by the time it ran
+          // (sections views re-slot card elements, which detaches/re-attaches
+          // them). Tear down and retry instead of keeping a chart that never
+          // mounted.
+          log(err);
+          this._teardownAndRetry();
+          return;
         }
-        await Promise.all(promises);
+        // Even a resolved render() can produce a chart without its SVG root:
+        // ApexCharts' create() bails out (returning null, which render()
+        // treats as success) when the container is zero-width or detached at
+        // that instant, e.g. because the sections grid re-slotted the card
+        // between our size check and the render completing. Such an instance
+        // crashes on every later update, so verify before keeping it.
+        if (
+          !this._isChartHealthy(this._apexChart) ||
+          (this._apexBrush && !this._isChartHealthy(this._apexBrush))
+        ) {
+          this._teardownAndRetry();
+          return;
+        }
         this._firstDataLoad();
       }
     } finally {
@@ -860,6 +883,47 @@ class ChartsCard extends LitElement {
       const timer = setTimeout(() => finish(false), timeoutMs);
       observer.observe(el);
     });
+  }
+
+  /**
+   * A chart is healthy when its SVG root (Paper) was actually built and its
+   * internals have not been nulled by a half-completed teardown. ApexCharts
+   * can end up in either broken state without reporting an error: create()
+   * silently builds nothing when the container is zero-width/detached, and
+   * its internal resize-triggered update() crashes midway through clear()
+   * on such a chart, nulling ctx.data. Calling updateOptions() on either
+   * kind of instance throws ("reading 'node'" / "reading 'resetParsingFlags'").
+   */
+  private _isChartHealthy(chart?: ApexCharts): boolean {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = chart as any;
+    return !!c?.data && !!c?.w?.globals?.dom?.Paper?.node;
+  }
+
+  /**
+   * destroy() removes the chart's window/parent resize listeners first, then
+   * crashes on the missing SVG root when called on an unhealthy chart (see
+   * _isChartHealthy) — so a guarded destroy still fully disarms it.
+   */
+  private _safeDestroy(chart?: ApexCharts) {
+    try {
+      chart?.destroy();
+    } catch (err) {
+      log(err);
+    }
+  }
+
+  /** Discards a failed chart mount and schedules another _initialLoad attempt. */
+  private _teardownAndRetry() {
+    this._safeDestroy(this._apexChart);
+    this._safeDestroy(this._apexBrush);
+    this._apexChart = undefined;
+    this._apexBrush = undefined;
+    this._brushInit = false;
+    this._loaded = false;
+    // _entities is not reactive, so without this a card whose entities update
+    // rarely would stay blank until something else triggered an update cycle.
+    window.requestAnimationFrame(() => this.requestUpdate());
   }
 
   private async _updateData() {
@@ -1036,6 +1100,16 @@ class ChartsCard extends LitElement {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const currentMax = (this._apexChart as any).axes?.w?.globals?.maxX;
       this._headerState = [...this._headerState];
+      // The chart can break at any time between updates: ApexCharts' own
+      // resize handler crashes half-way through its teardown if the SVG root
+      // was never built (zero-width/detached render), after which every
+      // updateOptions() throws. Detect that and rebuild instead of erroring
+      // forever on a dead instance.
+      if (!this._isChartHealthy(this._apexChart) || (this._apexBrush && !this._isChartHealthy(this._apexBrush))) {
+        this._updating = false;
+        this._reset();
+        return;
+      }
       const chartUpdates: Promise<unknown>[] = [];
       chartUpdates.push(
         this._apexChart?.updateOptions(
